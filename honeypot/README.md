@@ -6,7 +6,7 @@
 
 ## English
 
-Wazuh rules for the events written by the [ssh-honeypot](https://github.com/TinchoLay/ssh-honeypot) project. The honeypot runs in Docker on its own EC2 instance, with a Wazuh agent that reports to the same manager as the rest of this pack.
+Wazuh rules for the events written by the [ssh-honeypot](https://github.com/MartinChanca/ssh-honeypot) project. The honeypot runs in Docker on its own EC2 instance, with a Wazuh agent that reports to the same manager as the rest of this pack.
 
 This is lab work, not production.
 
@@ -173,7 +173,7 @@ Limits:
 
 ### SSH connections and commands (100350 to 100370)
 
-The honeypot records two things that no rule covered: how every SSH connection ends (`ssh_connections.json`) and what the attacker types, now including commands sent without a shell. The [honeypot README](https://github.com/TinchoLay/ssh-honeypot) explains how it records them. I wrote this set on 26 October from two numbers in the honeypot data: 802 connections that got in and left without a shell, and only 39 commands captured in total.
+The honeypot records two things that no rule covered: how every SSH connection ends (`ssh_connections.json`) and what the attacker types, now including commands sent without a shell. The [honeypot README](https://github.com/MartinChanca/ssh-honeypot) explains how it records them. I wrote this set on 26 October from two numbers in the honeypot data: 802 connections that got in and left without a shell, and only 39 commands captured in total.
 
 How it is built:
 - The connection rules look at the `resultado` field. 100351 is scanner noise, 100352 means the honeypot accepted the login, and 100353 refines that when the client banner belongs to an SSH library used by programs. 100354 counts by group instead of by rule ID because I was not sure that `if_matched_sid` would count an event that ended on a child rule.
@@ -281,7 +281,7 @@ Not verified: whether Filebeat sends duplicate alerts to the indexer after an al
 
 ## Español
 
-Reglas de Wazuh para los eventos que escribe el proyecto [ssh-honeypot](https://github.com/TinchoLay/ssh-honeypot). El honeypot corre en Docker en su propia instancia EC2, con un agente de Wazuh que reporta al mismo manager que el resto de este pack.
+Reglas de Wazuh para los eventos que escribe el proyecto [ssh-honeypot](https://github.com/MartinChanca/ssh-honeypot). El honeypot corre en Docker en su propia instancia EC2, con un agente de Wazuh que reporta al mismo manager que el resto de este pack.
 
 Es trabajo de laboratorio, no de producción.
 
@@ -448,7 +448,7 @@ Límites:
 
 ### Conexiones y comandos SSH (100350 a 100370)
 
-El honeypot registra dos cosas que ninguna regla cubría: cómo termina cada conexión SSH (`ssh_connections.json`) y lo que escribe el atacante, ahora incluyendo comandos enviados sin shell. El [README del honeypot](https://github.com/TinchoLay/ssh-honeypot) explica cómo los registra. Escribí este conjunto el 26 de octubre a partir de dos números de los datos del honeypot: 802 conexiones que entraron y se fueron sin una shell, y solo 39 comandos capturados en total.
+El honeypot registra dos cosas que ninguna regla cubría: cómo termina cada conexión SSH (`ssh_connections.json`) y lo que escribe el atacante, ahora incluyendo comandos enviados sin shell. El [README del honeypot](https://github.com/MartinChanca/ssh-honeypot) explica cómo los registra. Escribí este conjunto el 26 de octubre a partir de dos números de los datos del honeypot: 802 conexiones que entraron y se fueron sin una shell, y solo 39 comandos capturados en total.
 
 Cómo está armado:
 - Las reglas de conexión miran el campo `resultado`. 100351 es ruido de scanners, 100352 significa que el honeypot aceptó el login y 100353 lo refina cuando el banner del cliente es de una librería SSH que usan los programas. 100354 cuenta por grupo y no por ID de regla porque no estaba seguro de que `if_matched_sid` contara un evento que terminó en una regla hija.
