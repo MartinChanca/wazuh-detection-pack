@@ -126,6 +126,14 @@
 #@ session=go repeat=6 expect=100354
 {"timestamp": "2026-10-26 21:00:03", "honeypot_event": "ssh_connection", "ip": "203.0.113.12", "resultado": "autenticado_sin_shell", "banner": "SSH-2.0-Go", "duracion_seg": 11.5, "intentos_login": 1}
 
+# (100355) una sola conexion de menos de 1 segundo: dispara la base pero no la 100356 (necesita 3).
+#@ expect=100355 not=100356
+{"timestamp": "2026-11-18 10:00:00", "honeypot_event": "ssh_connection", "ip": "203.0.113.70", "resultado": "fallido", "banner": "SSH-2.0-Go", "duracion_seg": 0.35, "intentos_login": 1}
+
+# (100356) 3 conexiones de menos de 1 segundo de la misma IP en 10 s: prueba rapida de credenciales.
+#@ session=corta repeat=3 expect=100356
+{"timestamp": "2026-11-18 10:00:05", "honeypot_event": "ssh_connection", "ip": "203.0.113.71", "resultado": "fallido", "banner": "SSH-2.0-Go", "duracion_seg": 0.3, "intentos_login": 1}
+
 # (100302) fuerza bruta rapida: el README observo 100303 en el 5.o evento y 100302 en el 9.o.
 #@ session=rapida repeat=12 expect=100302
 {"timestamp": "2026-10-27 16:01:00", "honeypot_event": "ssh_login_attempt", "ip": "203.0.113.34", "username": "root", "password": "admin"}

@@ -69,6 +69,8 @@ The name `honeypot_rules_http.xml` is deliberate. Wazuh loads rule files in alph
 | 100352 | 6 | The honeypot accepted the login: result `autenticado_sin_shell`, `exec` or `shell` (T1078) |
 | 100353 | 7 | Same as 100352, but the client banner is an SSH library used by programs (`Go`, `libssh`, `paramiko`, `makiko`, `AsyncSSH`, `JSCH`), not a person's client (T1078) |
 | 100354 | 9 | 5 accepted logins from the same IP in 300 s, `ignore="300"` (T1110). It counts the group `honeypot_login_ok` |
+| 100355 | 2 | SSH connection under 1 second (`duracion_seg` starts with `0.`), counted but not shown (base rule for 100356) |
+| 100356 | 8 | 3 connections under 1 second from the same IP in 10 s, `ignore="60"` (T1110): automated fast credential probing, draft added 18 November, pending validation with real traffic |
 | 100360 | 3 | Any command typed or sent by the attacker (base rule for the command set) |
 | 100361 | 12 | Command that WRITES `authorized_keys` (`>`, `>>`, `tee`, `cp`/`mv`): leaving an SSH key behind (T1098.004). Reading the file no longer fires |
 | 100362 | 12 | Cryptominer program names (not inside a search list) or the `stratum` protocol (T1496) |
@@ -344,6 +346,8 @@ El nombre `honeypot_rules_http.xml` es a propósito. Wazuh carga los archivos de
 | 100352 | 6 | El honeypot aceptó el login: resultado `autenticado_sin_shell`, `exec` o `shell` (T1078) |
 | 100353 | 7 | Igual que 100352, pero el banner del cliente es una librería SSH que usan los programas (`Go`, `libssh`, `paramiko`, `makiko`, `AsyncSSH`, `JSCH`), no el cliente de una persona (T1078) |
 | 100354 | 9 | 5 logins aceptados desde la misma IP en 300 s, `ignore="300"` (T1110). Cuenta el grupo `honeypot_login_ok` |
+| 100355 | 2 | Conexión SSH de menos de 1 segundo (`duracion_seg` empieza con `0.`), se cuenta pero no se muestra (regla base de la 100356) |
+| 100356 | 8 | 3 conexiones de menos de 1 segundo desde la misma IP en 10 s, `ignore="60"` (T1110): prueba automatizada y rápida de credenciales, draft agregado el 18 de noviembre, pendiente de validar con tráfico real |
 | 100360 | 3 | Cualquier comando que escribe o manda el atacante (regla base del conjunto de comandos) |
 | 100361 | 12 | Comando que ESCRIBE en `authorized_keys` (`>`, `>>`, `tee`, `cp`/`mv`): dejar una clave SSH propia (T1098.004). Leer el archivo ya no dispara |
 | 100362 | 12 | Nombres de programas criptomineros (no dentro de una lista de búsqueda) o el protocolo `stratum` (T1496) |
