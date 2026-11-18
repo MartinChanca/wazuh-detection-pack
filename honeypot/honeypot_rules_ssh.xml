@@ -53,6 +53,21 @@
     <mitre><id>T1110</id></mitre>
   </rule>
 
+  <!-- H-004: sesiones SSH ultra cortas (grupo B, prueba rapida de credenciales).
+       Draft agregado 18/11, pendiente de prueba con wazuh-logtest antes de confiar en produccion. -->
+  <rule id="100355" level="2">
+    <if_sid>100350</if_sid>
+    <field name="duracion_seg" type="pcre2">^0\.[0-9]+$</field>
+    <description>Honeypot: conexion SSH de menos de 1 segundo desde $(ip) (resultado: $(resultado)).</description>
+  </rule>
+
+  <rule id="100356" level="8" frequency="3" timeframe="10" ignore="60">
+    <if_matched_sid>100355</if_matched_sid>
+    <same_field>ip</same_field>
+    <description>Honeypot: $(ip) hizo 3 conexiones SSH de menos de 1s en 10 segundos: prueba rapida de credenciales automatizada.</description>
+    <mitre><id>T1110</id></mitre>
+  </rule>
+
 
   <!-- ====================================================================
        Comandos del atacante (logs/shell_commands.json)
