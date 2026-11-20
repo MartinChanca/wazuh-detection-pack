@@ -58,12 +58,31 @@
     <mitre><id>T1595.002</id></mitre>
   </rule>
 
+  <!-- Sondeo de endpoints MCP (Model Context Protocol) o de streaming de eventos de agentes de IA:
+       buscan servidores MCP mal expuestos a internet para abusar de sus herramientas.
+       Visto el 20 de noviembre en los dos honeypots (/mcp, /mcp/, /sse, /api/mcp). -->
+  <rule id="100349" level="6">
+    <if_sid>100340</if_sid>
+    <field name="path" type="pcre2">(?i)^/(api/)?(mcp|sse)(/|\?|$)</field>
+    <description>Honeypot: sondeo de endpoint MCP/agente de IA ($(path)) desde $(ip).</description>
+    <mitre><id>T1595.002</id></mitre>
+  </rule>
+
   <!-- Rafaga: muchos requests de la misma IP en poco tiempo. -->
   <rule id="100346" level="5" frequency="10" timeframe="120" ignore="300">
     <if_matched_sid>100340</if_matched_sid>
     <same_field>ip</same_field>
     <description>Honeypot: rafaga de requests HTTP desde $(ip).</description>
     <mitre><id>T1595</id></mitre>
+  </rule>
+
+  <!-- Exploit de routers Netgear (inyeccion de comando via syscmd en setup.cgi),
+       tipico de botnets IoT tipo Mirai. Visto el 20 de noviembre en el honeypot principal. -->
+  <rule id="100380" level="8">
+    <if_sid>100340</if_sid>
+    <field name="path" type="pcre2">(?i)setup\.cgi\?.*todo=syscmd</field>
+    <description>Honeypot: intento de explotacion de router Netgear (inyeccion de comando) desde $(ip).</description>
+    <mitre><id>T1190</id></mitre>
   </rule>
 
   <!-- FTP anonimo. -->
