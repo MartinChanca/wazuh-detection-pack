@@ -6,6 +6,7 @@ VA EN EL MANAGER DE WAZUH (necesita root para hablar con el motor de reglas):
     cd ~/wazuh-detection-pack
     sudo python3 tests/run_logtest.py              # todo, salvo los casos que piden la lista CDB
     sudo python3 tests/run_logtest.py --cdb        # tambien los de la lista CDB (hace falta registrarla)
+    sudo python3 tests/run_logtest.py --ignore     # tambien los que dependen de `ignore` (logtest no lo aplica: esperar fallos)
     sudo python3 tests/run_logtest.py --verbose    # ademas muestra la salida cruda de logtest
 
 Importante: wazuh-logtest carga las reglas que estan instaladas en el manager
@@ -70,7 +71,7 @@ def correr_sesion(casos, logtest, verbose=False, timeout=60):
     return por_caso
 
 
-def correr(casos, logtest=LOGTEST, con_cdb=False, verbose=False):
+def correr(casos, logtest=LOGTEST, con_cdb=False, verbose=False, con_ignore=False):
     """Devuelve (fallos, salteados, total, lineas_de_reporte)."""
     reporte, fallos, salteados, total = [], 0, 0, 0
     pendientes = []
@@ -78,6 +79,9 @@ def correr(casos, logtest=LOGTEST, con_cdb=False, verbose=False):
         if c.needs == "cdb" and not con_cdb:
             salteados += 1
             reporte.append(f"SALTEADO {c.donde()} (necesita la lista CDB: usar --cdb)")
+        elif c.needs == "ignore" and not con_ignore:
+            salteados += 1
+            reporte.append(f"SALTEADO {c.donde()} (depende de `ignore`, que logtest no aplica: validar en vivo, o usar --ignore)")
         else:
             pendientes.append(c)
     for grupo in samples.agrupar(pendientes):
@@ -102,6 +106,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="Muestras de reglas contra wazuh-logtest real (en el manager)")
     ap.add_argument("archivos", nargs="*", help="archivos de muestras (por defecto honeypot/logtest_*_samples.txt)")
     ap.add_argument("--cdb", action="store_true", help="incluir los casos que necesitan la lista CDB")
+    ap.add_argument("--ignore", action="store_true", help="incluir los casos que dependen de `ignore` (logtest no lo aplica)")
     ap.add_argument("--verbose", action="store_true", help="mostrar la salida cruda de logtest")
     ap.add_argument("--logtest", default=LOGTEST, help=f"ruta de wazuh-logtest ({LOGTEST})")
     a = ap.parse_args(argv)
@@ -110,7 +115,7 @@ def main(argv=None):
     casos = []
     for ruta in archivos:
         casos += samples.parsear(open(ruta, encoding="utf-8").read(), os.path.relpath(ruta, RAIZ))
-    fallos, salteados, total, reporte = correr(casos, a.logtest, a.cdb, a.verbose)
+    fallos, salteados, total, reporte = correr(casos, a.logtest, a.cdb, a.verbose, a.ignore)
     print("\n".join(reporte))
     print(f"\n{total - fallos}/{total} casos bien, {fallos} con fallos, {salteados} salteados.")
     return 1 if fallos else 0

@@ -13,6 +13,7 @@
 #   session=NOMBRE   los casos con el mismo nombre comparten estado (reglas de frecuencia y correlacion)
 #   setup            caso de preparacion: se manda pero no se evalua
 #   needs=cdb        solo corre con --cdb (hace falta la lista registrada en ossec.conf)
+#   needs=ignore     solo corre con --ignore: depende del ignore de una regla, que wazuh-logtest no aplica
 # Las IPs son de documentacion (RFC 5737), no son atacantes reales.
 
 # --- Conexiones (ssh_connections.json) ---
@@ -86,12 +87,12 @@
 {"timestamp": "2026-10-27 16:00:02", "honeypot_event": "shell_command", "ip": "203.0.113.31", "command": "sh -c 'printf '\"'\"'\\n%s|%s\\n'\"'\"' check_26c845a5c579f0a359d8773a287d0ad4 \"$((956*983+35))\"'", "canal": "shell", "nota": ""}
 
 # (100382) rafaga larga de verificacion de shell desde una IP: 100369 alerta una vez (ignore) y el resto se cuenta
-# en 100381 hasta pasar el umbral. Depende de que logtest respete "ignore"; si no, esta muestra falla (ver README).
-#@ session=bateria repeat=45 expect=100382
+# en 100381 hasta pasar el umbral. logtest no aplica "ignore" (comprobado el 23/11): en el manager da 45 veces 100369. Validar en vivo.
+#@ session=bateria repeat=45 needs=ignore expect=100382
 {"timestamp": "2026-11-23 16:00:02", "honeypot_event": "shell_command", "ip": "203.0.113.90", "command": "sh -c 'printf '\"'\"'\\n%s|%s\\n'\"'\"' check_26c845a5c579f0a359d8773a287d0ad4 \"$((956*983+35))\"'", "canal": "shell", "nota": ""}
 
 # (100381) pocas repeticiones: tras la primera alerta de 100369 el resto se cuenta en la base silenciosa, sin llegar al umbral.
-#@ session=conteo repeat=3 expect=100381 not=100382
+#@ session=conteo repeat=3 needs=ignore expect=100381 not=100382
 {"timestamp": "2026-11-23 16:00:02", "honeypot_event": "shell_command", "ip": "203.0.113.91", "command": "sh -c 'printf '\"'\"'\\n%s|%s\\n'\"'\"' check_26c845a5c579f0a359d8773a287d0ad4 \"$((956*983+35))\"'", "canal": "shell", "nota": ""}
 
 # (100348) sondeo de API de modelos de IA por HTTP

@@ -8,6 +8,7 @@ Cada evento de muestra va precedido de lineas de anotacion que empiezan con "#@"
     #@ session=corr           los casos con el mismo nombre comparten estado de logtest
     #@ setup                  caso de preparacion: se manda, no se evalua
     #@ needs=cdb              solo corre si se pide (hace falta la lista CDB registrada)
+    #@ needs=ignore           solo corre con --ignore: dependen del `ignore` de una regla, que wazuh-logtest NO aplica
 
 Un evento sin anotacion, una clave desconocida o una anotacion sin evento son errores: asi un
 typo no puede dejar una muestra sin probar sin que nadie se entere.
