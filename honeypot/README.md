@@ -37,7 +37,7 @@ Manager side: copy the rule files to `/var/ossec/etc/rules/`, check them with `w
 | `honeypot_rules_http.xml` | 100340 to 100348: HTTP and FTP |
 | `honeypot_ioc_rules.xml` | 100330: failed logins from a known attacker IP |
 | `honeypot-attackers.example` | Format of the CDB list that rule 100330 reads |
-| `honeypot_rules_ssh.xml` | 100350 to 100369 and 100371 to 100375: how each SSH connection ended, and what the attacker types |
+| `honeypot_rules_ssh.xml` | 100350 to 100369, 100371 to 100375, 100381 and 100382: how each SSH connection ended, and what the attacker types |
 | `honeypot_rules_ssh_correlation.xml` | 100370: brute force followed by an accepted login. Separate file so it can be removed on its own |
 | `logtest_ssh_samples.txt` | SSH sample events with the rule each one should fire (`#@` annotations; paste by hand into `wazuh-logtest` or run `tests/run_logtest.py`) |
 | `logtest_http_samples.txt` | The same for the HTTP and FTP rules (100340 to 100348) |
@@ -83,6 +83,8 @@ The name `honeypot_rules_http.xml` is deliberate. Wazuh loads rule files in alph
 | 100367 | 5 | System recon: `uname`, `/proc/cpuinfo`, `nproc`, `lscpu`, `/etc/passwd`, `whoami` (T1082, T1033) |
 | 100368 | 10 | Reading password hashes: `/etc/shadow`, `/etc/gshadow` (T1003.008). Evaluated before 100367 |
 | 100369 | 6 | Shell check: random arithmetic `$((a*b+c))`, `check_<hash>` markers, `set` with arguments, `ignore="300"` (T1059.004). Evaluated before 100367 |
+| 100381 | 2 | Same pattern as 100369, counted but not shown. Catches the commands that 100369's `ignore="300"` silences (base rule for 100382) |
+| 100382 | 7 | 40 commands matching 100381 from the same IP in 300 s, `ignore="300"` (T1059.004): long shell-check burst (full interpreter sweep). Threshold is provisional |
 | 100371 | 10 | Credential hunting: `~/.aws`, gcloud, key prefixes (`AKIA`, `sk-`, `sk-ant-`, `gsk_`, `pplx-`, `AIza`), wallets and seed phrases, `env` dumps with keys (T1552.001, T1083). Evaluated before 100367 |
 | 100372 | 10 | Credentials requested from the cloud metadata service (IMDS): AWS token and `iam/security-credentials`, Azure `identity/oauth2/token`, GCP `service-accounts/.../token` (T1552.005). Evaluated before 100367 |
 | 100373 | 9 | Private SSH keys: `~/.ssh/id_*`, `id_rsa`/`id_ed25519`, host keys, `PRIVATE KEY` blocks (T1552.004, T1083) |
@@ -208,6 +210,10 @@ To feed 100368 and 100370, rules 100302 and 100303 now also belong to the group 
 
 A network in CIDR form (`198.51.100.0/24:campaign`) does not work as a key in this list. I tested it on Wazuh 4.14.8: `198.51.100.50` gave the stock rule 5760, while an exact IP in the same list (`192.0.2.10`) gave 100330. The list needs one line per IP, so for a network I generate the 254 lines with a loop. I had assumed CIDR worked, because I remembered it from the documentation, and the test proved me wrong. The check for any list change is the `wazuh-logtest` line at the end of `logtest_ssh_samples.txt`. With the 254 lines of the /24 loaded, `198.51.100.50` gave 100330, `203.0.113.50` (outside the range) gave 5760 and `192.0.2.10` gave 100330. The real list stays on the server and is not published here, because it has real attacker addresses. The `.example` file shows the CIDR format with a documentation range. The addresses in this paragraph are documentation ranges that stand in for the real ones I used in the test.
 
+### Rules added on 23 November
+
+- **100381 and 100382, counting the shell-check burst.** On 17 November one IP (2.57.x.x) ran about 90 shell-check commands across 7 interpreters. 100369 fired once and its `ignore="300"` silenced the rest, so ~90 events landed on the generic 100360, which looked like a detection gap but was not. `ignore` makes the rule return "no match" inside the window, so the event moves on to the next sibling rule that matches. 100381 is that sibling: same pattern as 100369, level 2 (no alert), placed right after it and before 100367. 100382 counts 100381 per IP (`same_field` ip) and alerts at level 7 if one IP sends 40 in 5 minutes. A normal sweep is 35 to 50 commands, the 17 November one was about 90, so 40 is a guess to adjust with real data. Side effect: those commands no longer show as level-3 100360 alerts (they still reach `shell_commands.json`). Not verified yet in the manager: that `wazuh-logtest` honors the `ignore` fall-through. If the 100382 sample fails there, the rule may still work live, so check with real traffic.
+
 ### Rules added on 20 November
 
 Reviewing the 19-20 November window on both honeypots turned up two gaps, neither covered by any existing rule:
@@ -325,7 +331,7 @@ Del lado del manager: copiar los archivos de reglas a `/var/ossec/etc/rules/`, v
 | `honeypot_rules_http.xml` | 100340 a 100348: HTTP y FTP |
 | `honeypot_ioc_rules.xml` | 100330: logins fallidos desde una IP de atacante conocida |
 | `honeypot-attackers.example` | Formato de la lista CDB que lee la regla 100330 |
-| `honeypot_rules_ssh.xml` | 100350 a 100369 y 100371 a 100375: cómo terminó cada conexión SSH y qué escribe el atacante |
+| `honeypot_rules_ssh.xml` | 100350 a 100369, 100371 a 100375, 100381 y 100382: cómo terminó cada conexión SSH y qué escribe el atacante |
 | `honeypot_rules_ssh_correlation.xml` | 100370: fuerza bruta seguida de un login aceptado. Archivo aparte para poder sacarlo solo |
 | `logtest_ssh_samples.txt` | Eventos SSH de ejemplo con la regla que debería disparar cada uno (anotaciones `#@`; pegar a mano en `wazuh-logtest` o correr `tests/run_logtest.py`) |
 | `logtest_http_samples.txt` | Lo mismo para las reglas HTTP y FTP (100340 a 100348) |
@@ -371,6 +377,8 @@ El nombre `honeypot_rules_http.xml` es a propósito. Wazuh carga los archivos de
 | 100367 | 5 | Reconocimiento del sistema: `uname`, `/proc/cpuinfo`, `nproc`, `lscpu`, `/etc/passwd`, `whoami` (T1082, T1033) |
 | 100368 | 10 | Lectura de hashes de contraseñas: `/etc/shadow`, `/etc/gshadow` (T1003.008). Se evalúa antes que 100367 |
 | 100369 | 6 | Verificación de la shell: aritmética al azar `$((a*b+c))`, marcadores `check_<hash>`, `set` con argumentos, `ignore="300"` (T1059.004). Se evalúa antes que 100367 |
+| 100381 | 2 | Mismo patrón que 100369, se cuenta pero no se muestra. Agarra los comandos que el `ignore="300"` de 100369 silencia (regla base de 100382) |
+| 100382 | 7 | 40 comandos que coinciden con 100381 desde la misma IP en 300 s, `ignore="300"` (T1059.004): ráfaga larga de verificación de shell (barrido de intérpretes). El umbral es provisorio |
 | 100371 | 10 | Búsqueda de credenciales: `~/.aws`, gcloud, prefijos de claves (`AKIA`, `sk-`, `sk-ant-`, `gsk_`, `pplx-`, `AIza`), billeteras y frases semilla, volcados de `env` con claves (T1552.001, T1083). Se evalúa antes que 100367 |
 | 100372 | 10 | Credenciales pedidas al servicio de metadatos de la nube (IMDS): token y `iam/security-credentials` de AWS, `identity/oauth2/token` de Azure, `service-accounts/.../token` de GCP (T1552.005). Se evalúa antes que 100367 |
 | 100373 | 9 | Claves privadas SSH: `~/.ssh/id_*`, `id_rsa`/`id_ed25519`, claves de host, bloques `PRIVATE KEY` (T1552.004, T1083) |
@@ -495,6 +503,10 @@ Leí un día de tráfico real (27 de octubre) y sumé cuatro reglas a partir de 
 Para alimentar 100368 y 100370, las reglas 100302 y 100303 ahora también pertenecen al grupo `honeypot_bruteforce`. No cambió nada más de ellas.
 
 Una red en formato CIDR (`198.51.100.0/24:campaign`) no funciona como clave en esta lista. Lo probé en Wazuh 4.14.8: `198.51.100.50` dio la regla de fábrica 5760, mientras que una IP exacta de la misma lista (`192.0.2.10`) dio 100330. La lista necesita una línea por IP, así que para una red genero las 254 líneas con un bucle. Yo había dado por hecho que CIDR funcionaba, porque lo recordaba de la documentación, y la prueba me desmintió. La comprobación para cualquier cambio de la lista es la línea de `wazuh-logtest` al final de `logtest_ssh_samples.txt`. Con las 254 líneas de la /24 cargadas, `198.51.100.50` dio 100330, `203.0.113.50` (fuera del rango) dio 5760 y `192.0.2.10` dio 100330. La lista real queda en el servidor y no se publica acá, porque tiene direcciones reales de atacantes. El archivo `.example` muestra el formato CIDR con un rango de documentación. Las direcciones de este párrafo son rangos de documentación que reemplazan a las reales que usé en la prueba.
+
+### Reglas agregadas el 23 de noviembre
+
+- **100381 y 100382, conteo de la ráfaga de verificación de shell.** El 17 de noviembre una IP (2.57.x.x) corrió unos 90 comandos de verificación de shell con 7 intérpretes. 100369 saltó una vez y su `ignore="300"` silenció el resto, así que ~90 eventos cayeron en la genérica 100360, lo que parecía un hueco de detección pero no lo era. `ignore` hace que la regla devuelva "no coincide" dentro de la ventana, y el evento sigue a la próxima hermana que coincida. 100381 es esa hermana: mismo patrón que 100369, nivel 2 (sin alerta), puesta justo después y antes de 100367. 100382 cuenta 100381 por IP (`same_field` ip) y alerta en nivel 7 si una IP manda 40 en 5 minutos. Un barrido normal son 35 a 50 comandos, el del 17 de noviembre fueron unos 90, así que 40 es una estimación a ajustar con datos reales. Efecto secundario: esos comandos ya no aparecen como alertas 100360 de nivel 3 (igual llegan a `shell_commands.json`). Todavía no verifiqué en el manager que `wazuh-logtest` respete el `ignore` de esa forma. Si la muestra de 100382 falla ahí, la regla puede andar igual en vivo, así que hay que confirmarlo con tráfico real.
 
 ### Reglas agregadas el 20 de noviembre
 

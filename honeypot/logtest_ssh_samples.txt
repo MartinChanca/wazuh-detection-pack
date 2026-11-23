@@ -85,6 +85,15 @@
 #@ expect=100369
 {"timestamp": "2026-10-27 16:00:02", "honeypot_event": "shell_command", "ip": "203.0.113.31", "command": "sh -c 'printf '\"'\"'\\n%s|%s\\n'\"'\"' check_26c845a5c579f0a359d8773a287d0ad4 \"$((956*983+35))\"'", "canal": "shell", "nota": ""}
 
+# (100382) rafaga larga de verificacion de shell desde una IP: 100369 alerta una vez (ignore) y el resto se cuenta
+# en 100381 hasta pasar el umbral. Depende de que logtest respete "ignore"; si no, esta muestra falla (ver README).
+#@ session=bateria repeat=45 expect=100382
+{"timestamp": "2026-11-23 16:00:02", "honeypot_event": "shell_command", "ip": "203.0.113.90", "command": "sh -c 'printf '\"'\"'\\n%s|%s\\n'\"'\"' check_26c845a5c579f0a359d8773a287d0ad4 \"$((956*983+35))\"'", "canal": "shell", "nota": ""}
+
+# (100381) pocas repeticiones: tras la primera alerta de 100369 el resto se cuenta en la base silenciosa, sin llegar al umbral.
+#@ session=conteo repeat=3 expect=100381 not=100382
+{"timestamp": "2026-11-23 16:00:02", "honeypot_event": "shell_command", "ip": "203.0.113.91", "command": "sh -c 'printf '\"'\"'\\n%s|%s\\n'\"'\"' check_26c845a5c579f0a359d8773a287d0ad4 \"$((956*983+35))\"'", "canal": "shell", "nota": ""}
+
 # (100348) sondeo de API de modelos de IA por HTTP
 #@ expect=100348
 {"timestamp": "2026-10-27 16:00:03", "honeypot_event": "http_request", "ip": "203.0.113.32", "method": "GET", "path": "/api/v1/models"}

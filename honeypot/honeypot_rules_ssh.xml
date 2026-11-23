@@ -226,6 +226,24 @@
     <mitre><id>T1059.004</id></mitre>
   </rule>
 
+  <!-- Conteo de la verificacion de shell (H-003). 100369 tiene ignore="300": tras la primera alerta,
+       los demas comandos de la rafaga caen aca (siguiente hermana que coincide) en vez de quedar como
+       100360 generica. 100381 es la base silenciosa (nivel 2, no genera alerta) con el MISMO patron que
+       100369, y 100382 alerta si una misma IP junta una rafaga larga. Va despues de 100369 y antes de
+       100367: la primera hermana que coincide gana. -->
+  <rule id="100381" level="2">
+    <if_sid>100360</if_sid>
+    <field name="command" type="pcre2">(?i)(\bf?_?check_[0-9a-f]{16,}|\$\(\(\s*\d+\s*[*+\-]\s*\d+|\bset\s+--\s+\S*check_)</field>
+    <description>Honeypot: $(ip) verificacion de shell ya silenciada por 100369 (se cuenta, no se muestra).</description>
+  </rule>
+
+  <rule id="100382" level="7" frequency="40" timeframe="300" ignore="300">
+    <if_matched_sid>100381</if_matched_sid>
+    <same_field>ip</same_field>
+    <description>Honeypot: $(ip) corrio una rafaga larga de verificacion de shell (barrido de interpretes, silenciado por 100369).</description>
+    <mitre><id>T1059.004</id></mitre>
+  </rule>
+
   <!-- Reconocimiento del sistema: lo primero que hace casi cualquier bot. -->
   <rule id="100367" level="5">
     <if_sid>100360</if_sid>
