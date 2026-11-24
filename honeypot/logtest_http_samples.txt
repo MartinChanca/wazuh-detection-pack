@@ -83,3 +83,6 @@
 #@ not=100347
 {"timestamp": "2026-10-30 09:10:15", "honeypot_event": "ftp_login_attempt", "ip": "203.0.113.72", "username": "admin", "password": "admin"}
 
+# (100345) servidor de desarrollo de Vite expuesto
+#@ expect=100345
+{"timestamp": "2026-11-24 09:00:01", "honeypot_event": "http_request", "ip": "203.0.113.74", "method": "GET", "path": "/@vite/client"}

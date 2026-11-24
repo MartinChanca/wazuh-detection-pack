@@ -34,6 +34,39 @@
 #@ expect=100352 not=100353
 {"timestamp": "2026-10-26 21:00:04", "honeypot_event": "ssh_connection", "ip": "203.0.113.13", "resultado": "shell", "banner": "SSH-2.0-OpenSSH_9.6", "duracion_seg": 40.0, "intentos_login": 1}
 
+# (100383) campania repartida: 15 IPs distintas entran con el mismo banner OpenSSH_7.4 (una por IP, como en la vida real).
+# Las primeras 14 solo llegan a 100352; la 15.a pasa el umbral. No depende de ignore.
+#@ session=campana expect=100352
+{"timestamp": "2026-11-24 10:01:00", "honeypot_event": "ssh_connection", "ip": "203.0.113.101", "resultado": "autenticado_sin_shell", "banner": "SSH-2.0-OpenSSH_7.4", "duracion_seg": 3.8, "intentos_login": 1}
+#@ session=campana expect=100352
+{"timestamp": "2026-11-24 10:02:00", "honeypot_event": "ssh_connection", "ip": "203.0.113.102", "resultado": "autenticado_sin_shell", "banner": "SSH-2.0-OpenSSH_7.4", "duracion_seg": 3.8, "intentos_login": 1}
+#@ session=campana expect=100352
+{"timestamp": "2026-11-24 10:03:00", "honeypot_event": "ssh_connection", "ip": "203.0.113.103", "resultado": "autenticado_sin_shell", "banner": "SSH-2.0-OpenSSH_7.4", "duracion_seg": 3.8, "intentos_login": 1}
+#@ session=campana expect=100352
+{"timestamp": "2026-11-24 10:04:00", "honeypot_event": "ssh_connection", "ip": "203.0.113.104", "resultado": "autenticado_sin_shell", "banner": "SSH-2.0-OpenSSH_7.4", "duracion_seg": 3.8, "intentos_login": 1}
+#@ session=campana expect=100352
+{"timestamp": "2026-11-24 10:05:00", "honeypot_event": "ssh_connection", "ip": "203.0.113.105", "resultado": "autenticado_sin_shell", "banner": "SSH-2.0-OpenSSH_7.4", "duracion_seg": 3.8, "intentos_login": 1}
+#@ session=campana expect=100352
+{"timestamp": "2026-11-24 10:06:00", "honeypot_event": "ssh_connection", "ip": "203.0.113.106", "resultado": "autenticado_sin_shell", "banner": "SSH-2.0-OpenSSH_7.4", "duracion_seg": 3.8, "intentos_login": 1}
+#@ session=campana expect=100352
+{"timestamp": "2026-11-24 10:07:00", "honeypot_event": "ssh_connection", "ip": "203.0.113.107", "resultado": "autenticado_sin_shell", "banner": "SSH-2.0-OpenSSH_7.4", "duracion_seg": 3.8, "intentos_login": 1}
+#@ session=campana expect=100352
+{"timestamp": "2026-11-24 10:08:00", "honeypot_event": "ssh_connection", "ip": "203.0.113.108", "resultado": "autenticado_sin_shell", "banner": "SSH-2.0-OpenSSH_7.4", "duracion_seg": 3.8, "intentos_login": 1}
+#@ session=campana expect=100352
+{"timestamp": "2026-11-24 10:09:00", "honeypot_event": "ssh_connection", "ip": "203.0.113.109", "resultado": "autenticado_sin_shell", "banner": "SSH-2.0-OpenSSH_7.4", "duracion_seg": 3.8, "intentos_login": 1}
+#@ session=campana expect=100352
+{"timestamp": "2026-11-24 10:10:00", "honeypot_event": "ssh_connection", "ip": "203.0.113.110", "resultado": "autenticado_sin_shell", "banner": "SSH-2.0-OpenSSH_7.4", "duracion_seg": 3.8, "intentos_login": 1}
+#@ session=campana expect=100352
+{"timestamp": "2026-11-24 10:11:00", "honeypot_event": "ssh_connection", "ip": "203.0.113.111", "resultado": "autenticado_sin_shell", "banner": "SSH-2.0-OpenSSH_7.4", "duracion_seg": 3.8, "intentos_login": 1}
+#@ session=campana expect=100352
+{"timestamp": "2026-11-24 10:12:00", "honeypot_event": "ssh_connection", "ip": "203.0.113.112", "resultado": "autenticado_sin_shell", "banner": "SSH-2.0-OpenSSH_7.4", "duracion_seg": 3.8, "intentos_login": 1}
+#@ session=campana expect=100352
+{"timestamp": "2026-11-24 10:13:00", "honeypot_event": "ssh_connection", "ip": "203.0.113.113", "resultado": "autenticado_sin_shell", "banner": "SSH-2.0-OpenSSH_7.4", "duracion_seg": 3.8, "intentos_login": 1}
+#@ session=campana expect=100352
+{"timestamp": "2026-11-24 10:14:00", "honeypot_event": "ssh_connection", "ip": "203.0.113.114", "resultado": "autenticado_sin_shell", "banner": "SSH-2.0-OpenSSH_7.4", "duracion_seg": 3.8, "intentos_login": 1}
+#@ session=campana expect=100383
+{"timestamp": "2026-11-24 10:15:00", "honeypot_event": "ssh_connection", "ip": "203.0.113.115", "resultado": "autenticado_sin_shell", "banner": "SSH-2.0-OpenSSH_7.4", "duracion_seg": 3.8, "intentos_login": 1}
+
 # --- Comandos (shell_commands.json) ---
 
 # (100367) reconocimiento

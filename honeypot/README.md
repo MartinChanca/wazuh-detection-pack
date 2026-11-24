@@ -38,7 +38,7 @@ Manager side: copy the rule files to `/var/ossec/etc/rules/`, check them with `w
 | `honeypot_ioc_rules.xml` | 100330: failed logins from a known attacker IP |
 | `honeypot-attackers.example` | Format of the CDB list that rule 100330 reads |
 | `honeypot_rules_ssh.xml` | 100350 to 100369, 100371 to 100375, 100381 and 100382: how each SSH connection ended, and what the attacker types |
-| `honeypot_rules_ssh_correlation.xml` | 100370: brute force followed by an accepted login. Separate file so it can be removed on its own |
+| `honeypot_rules_ssh_correlation.xml` | 100370 and 100383: brute force followed by an accepted login, and a spread-out campaign. Separate file so it can be removed on its own |
 | `logtest_ssh_samples.txt` | SSH sample events with the rule each one should fire (`#@` annotations; paste by hand into `wazuh-logtest` or run `tests/run_logtest.py`) |
 | `logtest_http_samples.txt` | The same for the HTTP and FTP rules (100340 to 100348) |
 
@@ -60,7 +60,7 @@ The name `honeypot_rules_http.xml` is deliberate. Wazuh loads rule files in alph
 | 100342 | 5 | Open proxy probe: a full URL as the path, or `CONNECT host:port` (T1595) |
 | 100343 | 5 | WebLogic T3 handshake sent to the HTTP port (T1595.002) |
 | 100344 | 3 | Traffic that is not HTTP at all, such as a stray protocol or binary junk (T1595) |
-| 100345 | 5 | Probe for a known target: `wp-json`, `wp-login`, `xmlrpc.php`, `/.env`, `/.git`, `phpmyadmin`, `actuator`, `/solr`, `manager/html`, Jenkins, GeoServer (T1595.002) |
+| 100345 | 5 | Probe for a known target: `wp-json`, `wp-login`, `xmlrpc.php`, `/.env`, `/.git`, `phpmyadmin`, `actuator`, `/solr`, `manager/html`, Jenkins, GeoServer, Vite dev server `/@vite/` (T1595.002) |
 | 100346 | 5 | 10 HTTP requests from the same IP in 120 s, `ignore="300"` (T1595) |
 | 100347 | 4 | FTP login as `anonymous` (T1078) |
 | 100348 | 6 | Probe for an AI model API: `/v1/models`, `/v1beta/models`, `/v1/chat/completions`, `/api/tags`, `/ollama/` (T1595.002) |
@@ -85,6 +85,7 @@ The name `honeypot_rules_http.xml` is deliberate. Wazuh loads rule files in alph
 | 100369 | 6 | Child of 100381. Shell check: random arithmetic `$((a*b+c))`, `check_<hash>` markers, `set` with arguments, `ignore="300"` (T1059.004). Evaluated before 100367 |
 | 100381 | 2 | Shell-check pattern, counted but not shown. Parent of 100369, so the commands that 100369's `ignore="300"` silences stay here instead of falling to 100360 (base rule for 100382) |
 | 100382 | 7 | 40 commands matching 100381 from the same IP in 300 s, `ignore="300"` (T1059.004): long shell-check burst (full interpreter sweep). Threshold is provisional |
+| 100383 | 8 | 15 accepted logins (100352) in 24 h with the same client banner, any IP, `ignore="86400"` (T1110.003): spread-out credential campaign. Threshold is provisional |
 | 100371 | 10 | Credential hunting: `~/.aws`, gcloud, key prefixes (`AKIA`, `sk-`, `sk-ant-`, `gsk_`, `pplx-`, `AIza`), wallets and seed phrases, `env` dumps with keys (T1552.001, T1083). Evaluated before 100367 |
 | 100372 | 10 | Credentials requested from the cloud metadata service (IMDS): AWS token and `iam/security-credentials`, Azure `identity/oauth2/token`, GCP `service-accounts/.../token` (T1552.005). Evaluated before 100367 |
 | 100373 | 9 | Private SSH keys: `~/.ssh/id_*`, `id_rsa`/`id_ed25519`, host keys, `PRIVATE KEY` blocks (T1552.004, T1083) |
@@ -214,6 +215,11 @@ A network in CIDR form (`198.51.100.0/24:campaign`) does not work as a key in th
 
 - **100381 and 100382, counting the shell-check burst.** On 17 November one IP (2.57.x.x) ran about 90 shell-check commands across 7 interpreters. 100369 fired once and its `ignore="300"` silenced the rest, so ~90 events landed on the generic 100360, which looked like a detection gap but was not. My first attempt (23 November) added 100381 as a sibling of 100369 and assumed an ignored rule passes the event to the next sibling. **It does not**: on 24 November the manager logged ~20 more shell-check commands from each of two IPs as level-3 100360, none as 100381. When a child rule is inside its `ignore` window, the event stays at its parent. The fix (24 November) uses that: 100381 (level 2, no alert) is now the parent that holds the pattern, and 100369 is its child (`if_sid` 100381) and keeps `ignore="300"`. Ignored commands now stay at 100381, silently. 100382 counts 100381 per IP (`same_field` ip) and alerts at level 7 if one IP sends 40 in 5 minutes. A normal sweep is 35 to 50 commands, the 17 November one about 90, so 40 is a guess to adjust with real data. `wazuh-logtest` does not apply `ignore` (the sample sent 45 times gives 100369 every time), so the two samples are marked `needs=ignore` and `run_logtest.py` skips them unless you pass `--ignore`. Still to confirm with real traffic: that the commands now stay at 100381 and that 100382 fires.
 
+### Rules added on 24 November
+
+- **100383, spread-out credential campaign.** In two days the main honeypot accepted logins from 36 different IPs. About 39 connections carried the client banner `SSH-2.0-OpenSSH_7.4`, which looks copied by a tool. Each IP came back every few days with one credential (names like `operator2017` or `supervisor2021`) and left after 3 to 6 seconds. One IP alone looks harmless, and 100352 reports them one at a time. 100383 counts accepted logins (100352) that share the same `banner`, from any IP: 15 in 24 h raises a level-8 alert. My reading is a campaign that spreads credentials over many IPs, which is an inference, not a conclusion. Limits: it counts events, not distinct IPs (one very insistent IP also adds up, though 100354 already catches it); library banners (`Go`, `libssh`...) end on child 100353 and do not count, on purpose. The 15 is a guess from about 18 per day in the 23-24 November data. Not tested in the manager yet.
+- **100345, Vite dev server.** Added `/@vite/` to the list after two requests to `/@vite/client` went unnoticed. The idea is that scanners look for exposed development servers. I did not verify in this session which Vite flaws they are after, so the rule only says "known application probe".
+
 ### Rules added on 20 November
 
 Reviewing the 19-20 November window on both honeypots turned up two gaps, neither covered by any existing rule:
@@ -332,7 +338,7 @@ Del lado del manager: copiar los archivos de reglas a `/var/ossec/etc/rules/`, v
 | `honeypot_ioc_rules.xml` | 100330: logins fallidos desde una IP de atacante conocida |
 | `honeypot-attackers.example` | Formato de la lista CDB que lee la regla 100330 |
 | `honeypot_rules_ssh.xml` | 100350 a 100369, 100371 a 100375, 100381 y 100382: cómo terminó cada conexión SSH y qué escribe el atacante |
-| `honeypot_rules_ssh_correlation.xml` | 100370: fuerza bruta seguida de un login aceptado. Archivo aparte para poder sacarlo solo |
+| `honeypot_rules_ssh_correlation.xml` | 100370 y 100383: fuerza bruta seguida de un login aceptado, y campaña repartida. Archivo aparte para poder sacarlo solo |
 | `logtest_ssh_samples.txt` | Eventos SSH de ejemplo con la regla que debería disparar cada uno (anotaciones `#@`; pegar a mano en `wazuh-logtest` o correr `tests/run_logtest.py`) |
 | `logtest_http_samples.txt` | Lo mismo para las reglas HTTP y FTP (100340 a 100348) |
 
@@ -354,7 +360,7 @@ El nombre `honeypot_rules_http.xml` es a propósito. Wazuh carga los archivos de
 | 100342 | 5 | Prueba de proxy abierto: una URL completa como ruta, o `CONNECT host:puerto` (T1595) |
 | 100343 | 5 | Handshake T3 de WebLogic enviado al puerto HTTP (T1595.002) |
 | 100344 | 3 | Tráfico que no es HTTP, como un protocolo perdido o basura binaria (T1595) |
-| 100345 | 5 | Búsqueda de un objetivo conocido: `wp-json`, `wp-login`, `xmlrpc.php`, `/.env`, `/.git`, `phpmyadmin`, `actuator`, `/solr`, `manager/html`, Jenkins, GeoServer (T1595.002) |
+| 100345 | 5 | Búsqueda de un objetivo conocido: `wp-json`, `wp-login`, `xmlrpc.php`, `/.env`, `/.git`, `phpmyadmin`, `actuator`, `/solr`, `manager/html`, Jenkins, GeoServer, Vite dev server `/@vite/` (T1595.002) |
 | 100346 | 5 | 10 requests HTTP desde la misma IP en 120 s, `ignore="300"` (T1595) |
 | 100347 | 4 | Login FTP como `anonymous` (T1078) |
 | 100348 | 6 | Sondeo de una API de modelos de IA: `/v1/models`, `/v1beta/models`, `/v1/chat/completions`, `/api/tags`, `/ollama/` (T1595.002) |
@@ -379,6 +385,7 @@ El nombre `honeypot_rules_http.xml` es a propósito. Wazuh carga los archivos de
 | 100369 | 6 | Hija de 100381. Verificación de la shell: aritmética al azar `$((a*b+c))`, marcadores `check_<hash>`, `set` con argumentos, `ignore="300"` (T1059.004). Se evalúa antes que 100367 |
 | 100381 | 2 | Patrón de verificación de shell, se cuenta pero no se muestra. Es el padre de 100369, así que los comandos que el `ignore="300"` de 100369 silencia se quedan acá en vez de caer en 100360 (regla base de 100382) |
 | 100382 | 7 | 40 comandos que coinciden con 100381 desde la misma IP en 300 s, `ignore="300"` (T1059.004): ráfaga larga de verificación de shell (barrido de intérpretes). El umbral es provisorio |
+| 100383 | 8 | 15 logins aceptados (100352) en 24 h con el mismo banner de cliente, desde cualquier IP, `ignore="86400"` (T1110.003): campaña de credenciales repartida. El umbral es provisorio |
 | 100371 | 10 | Búsqueda de credenciales: `~/.aws`, gcloud, prefijos de claves (`AKIA`, `sk-`, `sk-ant-`, `gsk_`, `pplx-`, `AIza`), billeteras y frases semilla, volcados de `env` con claves (T1552.001, T1083). Se evalúa antes que 100367 |
 | 100372 | 10 | Credenciales pedidas al servicio de metadatos de la nube (IMDS): token y `iam/security-credentials` de AWS, `identity/oauth2/token` de Azure, `service-accounts/.../token` de GCP (T1552.005). Se evalúa antes que 100367 |
 | 100373 | 9 | Claves privadas SSH: `~/.ssh/id_*`, `id_rsa`/`id_ed25519`, claves de host, bloques `PRIVATE KEY` (T1552.004, T1083) |
@@ -507,6 +514,11 @@ Una red en formato CIDR (`198.51.100.0/24:campaign`) no funciona como clave en e
 ### Reglas agregadas el 23 de noviembre
 
 - **100381 y 100382, conteo de la ráfaga de verificación de shell.** El 17 de noviembre una IP (2.57.x.x) corrió unos 90 comandos de verificación de shell con 7 intérpretes. 100369 saltó una vez y su `ignore="300"` silenció el resto, así que ~90 eventos cayeron en la genérica 100360, lo que parecía un hueco de detección pero no lo era. Mi primer intento (23 de noviembre) puso 100381 como hermana de 100369 y asumió que una regla ignorada le pasa el evento a la hermana siguiente. **No es así**: el 24 de noviembre el manager registró unos 20 comandos más de verificación de dos IPs distintas como 100360 de nivel 3, ninguno como 100381. Cuando una regla hija está dentro de su ventana de `ignore`, el evento se queda en su padre. La corrección (24 de noviembre) aprovecha eso: 100381 (nivel 2, sin alerta) pasa a ser el padre que tiene el patrón, y 100369 es su hija (`if_sid` 100381) y conserva `ignore="300"`. Los comandos ignorados ahora se quedan en 100381, en silencio. 100382 cuenta 100381 por IP (`same_field` ip) y alerta en nivel 7 si una IP manda 40 en 5 minutos. Un barrido normal son 35 a 50 comandos, el del 17 de noviembre unos 90, así que 40 es una estimación a ajustar con datos reales. `wazuh-logtest` no aplica `ignore` (la muestra mandada 45 veces da 100369 todas las veces), así que las dos muestras llevan `needs=ignore` y `run_logtest.py` las saltea salvo que le pases `--ignore`. Falta confirmar con tráfico real que los comandos se quedan en 100381 y que 100382 salta.
+
+### Reglas agregadas el 24 de noviembre
+
+- **100383, campaña de credenciales repartida.** En dos días el honeypot principal aceptó logins de 36 IPs distintas. Unas 39 conexiones traían el banner de cliente `SSH-2.0-OpenSSH_7.4`, que parece copiado por una herramienta. Cada IP volvía cada pocos días con una credencial (nombres como `operator2017` o `supervisor2021`) y se iba a los 3 a 6 segundos. Una IP sola parece inofensiva, y 100352 las avisa de a una. 100383 cuenta los logins aceptados (100352) que comparten el mismo `banner`, desde cualquier IP: 15 en 24 h levanta una alerta de nivel 8. Mi lectura es una campaña que reparte credenciales entre muchas IPs, que es una inferencia y no una conclusión. Límites: cuenta eventos y no IPs distintas (una IP muy insistente también suma, aunque 100354 ya la agarra); los banners de librería (`Go`, `libssh`...) terminan en la hija 100353 y no cuentan, a propósito. El 15 es una estimación a partir de unos 18 por día en los datos del 23 y 24 de noviembre. Todavía no probada en el manager.
+- **100345, servidor de desarrollo de Vite.** Agregué `/@vite/` a la lista después de dos pedidos a `/@vite/client` que pasaron sin aviso. La idea es que los escáneres buscan servidores de desarrollo expuestos. No verifiqué en esta sesión qué fallas de Vite buscan, así que la regla solo dice "sondeo de aplicación conocida".
 
 ### Reglas agregadas el 20 de noviembre
 

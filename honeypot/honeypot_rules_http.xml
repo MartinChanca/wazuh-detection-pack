@@ -43,7 +43,7 @@
   <!-- Sondas a aplicaciones conocidas. -->
   <rule id="100345" level="5">
     <if_sid>100340</if_sid>
-    <field name="path" type="pcre2">(?i)(geoserver|wp-json|wp-login|xmlrpc\.php|/hudson|/jenkins|phpmyadmin|/\.env|/\.git|actuator|/solr|manager/html)</field>
+    <field name="path" type="pcre2">(?i)(geoserver|wp-json|wp-login|xmlrpc\.php|/hudson|/jenkins|phpmyadmin|/\.env|/\.git|actuator|/solr|manager/html|/@vite/)</field>
     <description>Honeypot: sondeo de aplicacion web conocida ($(path)) desde $(ip).</description>
     <mitre><id>T1595.002</id></mitre>
   </rule>

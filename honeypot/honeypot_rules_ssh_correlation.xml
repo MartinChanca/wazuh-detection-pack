@@ -18,4 +18,20 @@
     <mitre><id>T1110.001</id><id>T1078</id></mitre>
   </rule>
 
+  <!-- Campania repartida: muchas IPs distintas que "entran" con el mismo banner de cliente.
+       El 24/11 el honeypot principal vio 36 IPs en 2 dias con banner SSH-2.0-OpenSSH_7.4, una
+       credencial por IP cada pocos dias, sesion de 3 a 6 s. Ninguna IP sola llama la atencion
+       (100352 las avisa de a una), lo que sirve es contarlas todas juntas.
+       Cuenta eventos de 100352 con el mismo banner (same_field banner), no IPs distintas: una IP
+       muy insistente tambien suma, aunque 100354 ya la avisa por su cuenta. Los banners de
+       libreria (Go, libssh...) terminan en la hija 100353 y no suman aca: es lo buscado, porque
+       el banner "OpenSSH_7.4" es el que parece copiado por una herramienta.
+       Umbral provisorio (15 en 24 h, unos 18 por dia en los datos del 23-24/11): ajustar con datos reales. -->
+  <rule id="100383" level="8" frequency="15" timeframe="86400" ignore="86400">
+    <if_matched_sid>100352</if_matched_sid>
+    <same_field>banner</same_field>
+    <description>Honeypot: 15 logins aceptados en 24 h con el mismo banner de cliente ($(banner)), posible campania repartida entre muchas IPs (ultimo: $(ip)).</description>
+    <mitre><id>T1110.003</id></mitre>
+  </rule>
+
 </group>
