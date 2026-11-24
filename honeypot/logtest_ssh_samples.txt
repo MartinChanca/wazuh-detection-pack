@@ -87,7 +87,7 @@
 {"timestamp": "2026-10-27 16:00:02", "honeypot_event": "shell_command", "ip": "203.0.113.31", "command": "sh -c 'printf '\"'\"'\\n%s|%s\\n'\"'\"' check_26c845a5c579f0a359d8773a287d0ad4 \"$((956*983+35))\"'", "canal": "shell", "nota": ""}
 
 # (100382) rafaga larga de verificacion de shell desde una IP: 100369 alerta una vez (ignore) y el resto se cuenta
-# en 100381 hasta pasar el umbral. logtest no aplica "ignore" (comprobado el 23/11): en el manager da 45 veces 100369. Validar en vivo.
+# en 100381 (su padre) hasta pasar el umbral. logtest no aplica "ignore" (comprobado el 23/11): en el manager da 45 veces 100369. Validar en vivo.
 #@ session=bateria repeat=45 needs=ignore expect=100382
 {"timestamp": "2026-11-23 16:00:02", "honeypot_event": "shell_command", "ip": "203.0.113.90", "command": "sh -c 'printf '\"'\"'\\n%s|%s\\n'\"'\"' check_26c845a5c579f0a359d8773a287d0ad4 \"$((956*983+35))\"'", "canal": "shell", "nota": ""}
 

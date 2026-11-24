@@ -219,28 +219,29 @@
        ignore="300": una sola IP (195.178.x.x) levanto 180 alertas el 28 oct en 3 sesiones.
        El ignore vale para toda la regla, no por IP: mientras dura, otro visitante que haga
        el mismo chequeo no genera alerta (el comando igual queda en shell_commands.json). -->
-  <rule id="100369" level="6" ignore="300">
-    <if_sid>100360</if_sid>
-    <field name="command" type="pcre2">(?i)(\bf?_?check_[0-9a-f]{16,}|\$\(\(\s*\d+\s*[*+\-]\s*\d+|\bset\s+--\s+\S*check_)</field>
-    <description>Honeypot: $(ip) verifica si la shell es real (aritmetica y marcadores al azar).</description>
-    <mitre><id>T1059.004</id></mitre>
-  </rule>
-
-  <!-- Conteo de la verificacion de shell (H-003). 100369 tiene ignore="300": tras la primera alerta,
-       los demas comandos de la rafaga caen aca (siguiente hermana que coincide) en vez de quedar como
-       100360 generica. 100381 es la base silenciosa (nivel 2, no genera alerta) con el MISMO patron que
-       100369, y 100382 alerta si una misma IP junta una rafaga larga. Va despues de 100369 y antes de
-       100367: la primera hermana que coincide gana. -->
+  <!-- Verificacion de shell (H-003). 100381 es la base silenciosa (nivel 2, no genera alerta): tiene el
+       patron y cuenta cada comando. 100369 es hija de 100381 y da la alerta, con ignore="300".
+       Comprobado en produccion el 24/11: cuando una hija esta en su ignore, el evento NO pasa a la
+       hermana siguiente, se queda en el PADRE. Por eso el padre tiene que ser una regla que sirva para
+       contar (100381, nivel 2) y no la generica 100360 (nivel 3, que llenaba el dashboard).
+       100382 alerta si una misma IP junta una rafaga larga de esos comandos. Va antes de 100367:
+       la primera hermana que coincide gana. -->
   <rule id="100381" level="2">
     <if_sid>100360</if_sid>
     <field name="command" type="pcre2">(?i)(\bf?_?check_[0-9a-f]{16,}|\$\(\(\s*\d+\s*[*+\-]\s*\d+|\bset\s+--\s+\S*check_)</field>
-    <description>Honeypot: $(ip) verificacion de shell ya silenciada por 100369 (se cuenta, no se muestra).</description>
+    <description>Honeypot: $(ip) verificacion de shell ya avisada por 100369 (se cuenta, no se muestra).</description>
+  </rule>
+
+  <rule id="100369" level="6" ignore="300">
+    <if_sid>100381</if_sid>
+    <description>Honeypot: $(ip) verifica si la shell es real (aritmetica y marcadores al azar).</description>
+    <mitre><id>T1059.004</id></mitre>
   </rule>
 
   <rule id="100382" level="7" frequency="40" timeframe="300" ignore="300">
     <if_matched_sid>100381</if_matched_sid>
     <same_field>ip</same_field>
-    <description>Honeypot: $(ip) corrio una rafaga larga de verificacion de shell (barrido de interpretes, silenciado por 100369).</description>
+    <description>Honeypot: $(ip) corrio una rafaga larga de verificacion de shell (barrido de interpretes, avisado por 100369).</description>
     <mitre><id>T1059.004</id></mitre>
   </rule>
 
