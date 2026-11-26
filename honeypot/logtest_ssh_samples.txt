@@ -73,6 +73,14 @@
 #@ expect=100367
 {"timestamp": "2026-10-26 21:01:00", "honeypot_event": "shell_command", "ip": "203.0.113.20", "command": "uname -a", "canal": "exec", "nota": "Comando por canal exec"}
 
+# (100386) comando de MikroTik RouterOS por exec (el caso real del 26/11, con IP de documentacion)
+#@ expect=100386
+{"timestamp": "2026-11-26 10:40:23", "honeypot_event": "shell_command", "ip": "203.0.113.21", "command": "/ip cloud print", "canal": "exec", "nota": "Comando por canal exec"}
+
+# Una ruta de Linux que empieza parecido no debe disparar 100386 (/usr/bin/ip no es /ip)
+#@ expect=100360 not=100386
+{"timestamp": "2026-11-26 10:40:24", "honeypot_event": "shell_command", "ip": "203.0.113.22", "command": "/usr/bin/ip addr", "canal": "exec", "nota": "Comando por canal exec"}
+
 # (100361) clave SSH propia
 #@ expect=100361
 {"timestamp": "2026-10-26 21:01:01", "honeypot_event": "shell_command", "ip": "203.0.113.21", "command": "cd ~; chattr -ia .ssh; echo \"ssh-rsa AAAAB3NzaC1yc2E bot@x\" >> .ssh/authorized_keys", "canal": "exec", "nota": "Comando por canal exec"}

@@ -37,7 +37,7 @@ Manager side: copy the rule files to `/var/ossec/etc/rules/`, check them with `w
 | `honeypot_rules_http.xml` | 100340 to 100349, 100380, 100384 and 100385: HTTP and FTP |
 | `honeypot_ioc_rules.xml` | 100330: failed logins from a known attacker IP |
 | `honeypot-attackers.example` | Format of the CDB list that rule 100330 reads |
-| `honeypot_rules_ssh.xml` | 100350 to 100369, 100371 to 100375, 100381 and 100382: how each SSH connection ended, and what the attacker types |
+| `honeypot_rules_ssh.xml` | 100350 to 100369, 100371 to 100375, 100381, 100382 and 100386: how each SSH connection ended, and what the attacker types |
 | `honeypot_rules_ssh_correlation.xml` | 100370 and 100383: brute force followed by an accepted login, and a spread-out campaign. Separate file so it can be removed on its own |
 | `logtest_ssh_samples.txt` | SSH sample events with the rule each one should fire (`#@` annotations; paste by hand into `wazuh-logtest` or run `tests/run_logtest.py`) |
 | `logtest_http_samples.txt` | The same for the HTTP and FTP rules (100340 to 100348) |
@@ -93,6 +93,7 @@ The name `honeypot_rules_http.xml` is deliberate. Wazuh loads rule files in alph
 | 100373 | 9 | Private SSH keys: `~/.ssh/id_*`, `id_rsa`/`id_ed25519`, host keys, `PRIVATE KEY` blocks (T1552.004, T1083) |
 | 100374 | 9 | Config files with secrets: `.env`, `wp-config.php`, `.my.cnf`, `.git-credentials`, `.netrc`, variables such as `DB_PASSWORD` (T1552.001, T1083) |
 | 100375 | 7 | Any contact with the cloud metadata service without asking for credentials (T1552.005) |
+| 100386 | 5 | A MikroTik RouterOS CLI command (`/ip`, `/system`, `/user`, `/interface`, `/tool`, `/export`) typed over SSH, for example `/ip cloud print` (T1082) |
 | 100370 | 12 | An accepted login (100352) after a brute-force alert (100302 or 100303) from the same IP within 600 s, `ignore="300"` (T1110.001, T1078) |
 
 Severity follows how much evidence there is. A login attempt or a plain GET is noise, a request to an exploit path shows intent, and a sample that VirusTotal confirms is proof.
@@ -216,6 +217,10 @@ A network in CIDR form (`198.51.100.0/24:campaign`) does not work as a key in th
 ### Rules added on 23 November
 
 - **100381 and 100382, counting the shell-check burst.** On 17 November one IP (2.57.x.x) ran about 90 shell-check commands across 7 interpreters. 100369 fired once and its `ignore="300"` silenced the rest, so ~90 events landed on the generic 100360, which looked like a detection gap but was not. My first attempt (23 November) added 100381 as a sibling of 100369 and assumed an ignored rule passes the event to the next sibling. **It does not**: on 24 November the manager logged ~20 more shell-check commands from each of two IPs as level-3 100360, none as 100381. When a child rule is inside its `ignore` window, the event stays at its parent. The fix (24 November) uses that: 100381 (level 2, no alert) is now the parent that holds the pattern, and 100369 is its child (`if_sid` 100381) and keeps `ignore="300"`. Ignored commands now stay at 100381, silently. 100382 counts 100381 per IP (`same_field` ip) and alerts at level 7 if one IP sends 40 in 5 minutes. A normal sweep is 35 to 50 commands, the 17 November one about 90, so 40 is a guess to adjust with real data. `wazuh-logtest` does not apply `ignore` (the sample sent 45 times gives 100369 every time), so the two samples are marked `needs=ignore` and `run_logtest.py` skips them unless you pass `--ignore`. Still to confirm with real traffic: that the commands now stay at 100381 and that 100382 fires.
+
+### Rules added on 26 November
+
+- **100386, MikroTik RouterOS commands.** On 26 November an IP ran `/ip cloud print` over `exec`. I searched the older logs and the same command, with nothing else, came from 3 other IPs on 27 October, 29 October and 2 November, so it is a technique that repeats, not a one-off. It is a RouterOS CLI command, not a normal Linux one, so my reading is that the bot is checking whether the SSH port belongs to a MikroTik router. That is a reading, not something I confirmed. Until now these only showed up as 100352 (login accepted) and the generic 100360 (level 3). The rule looks for commands that start with the usual RouterOS menus (`/ip`, `/system`, `/user`, `/interface`, `/tool`, `/export`). Only `/ip cloud print` has been seen, so the other prefixes are my guess of what comes next. The pattern starts at the beginning of the command, so `/usr/bin/ip addr` does not match; there is a logtest sample for that. Level 5 and T1082, the same as 100367, because it is the same idea (figure out what the machine is). Not tested in the manager yet.
 
 ### Rules added on 25 November
 
@@ -345,7 +350,7 @@ Del lado del manager: copiar los archivos de reglas a `/var/ossec/etc/rules/`, v
 | `honeypot_rules_http.xml` | 100340 a 100349, 100380, 100384 y 100385: HTTP y FTP |
 | `honeypot_ioc_rules.xml` | 100330: logins fallidos desde una IP de atacante conocida |
 | `honeypot-attackers.example` | Formato de la lista CDB que lee la regla 100330 |
-| `honeypot_rules_ssh.xml` | 100350 a 100369, 100371 a 100375, 100381 y 100382: cómo terminó cada conexión SSH y qué escribe el atacante |
+| `honeypot_rules_ssh.xml` | 100350 a 100369, 100371 a 100375, 100381, 100382 y 100386: cómo terminó cada conexión SSH y qué escribe el atacante |
 | `honeypot_rules_ssh_correlation.xml` | 100370 y 100383: fuerza bruta seguida de un login aceptado, y campaña repartida. Archivo aparte para poder sacarlo solo |
 | `logtest_ssh_samples.txt` | Eventos SSH de ejemplo con la regla que debería disparar cada uno (anotaciones `#@`; pegar a mano en `wazuh-logtest` o correr `tests/run_logtest.py`) |
 | `logtest_http_samples.txt` | Lo mismo para las reglas HTTP y FTP (100340 a 100348) |
@@ -401,6 +406,7 @@ El nombre `honeypot_rules_http.xml` es a propósito. Wazuh carga los archivos de
 | 100373 | 9 | Claves privadas SSH: `~/.ssh/id_*`, `id_rsa`/`id_ed25519`, claves de host, bloques `PRIVATE KEY` (T1552.004, T1083) |
 | 100374 | 9 | Archivos de configuración con secretos: `.env`, `wp-config.php`, `.my.cnf`, `.git-credentials`, `.netrc`, variables como `DB_PASSWORD` (T1552.001, T1083) |
 | 100375 | 7 | Cualquier contacto con el servicio de metadatos de la nube sin pedir credenciales (T1552.005) |
+| 100386 | 5 | Un comando del CLI de MikroTik RouterOS (`/ip`, `/system`, `/user`, `/interface`, `/tool`, `/export`) por SSH, por ejemplo `/ip cloud print` (T1082) |
 | 100370 | 12 | Un login aceptado (100352) después de una alerta de fuerza bruta (100302 o 100303) desde la misma IP en 600 s, `ignore="300"` (T1110.001, T1078) |
 
 La severidad sigue cuánta evidencia hay. Un intento de login o un GET simple es ruido, un request a una ruta de exploit muestra intención y una muestra que VirusTotal confirma es una prueba.
@@ -524,6 +530,10 @@ Una red en formato CIDR (`198.51.100.0/24:campaign`) no funciona como clave en e
 ### Reglas agregadas el 23 de noviembre
 
 - **100381 y 100382, conteo de la ráfaga de verificación de shell.** El 17 de noviembre una IP (2.57.x.x) corrió unos 90 comandos de verificación de shell con 7 intérpretes. 100369 saltó una vez y su `ignore="300"` silenció el resto, así que ~90 eventos cayeron en la genérica 100360, lo que parecía un hueco de detección pero no lo era. Mi primer intento (23 de noviembre) puso 100381 como hermana de 100369 y asumió que una regla ignorada le pasa el evento a la hermana siguiente. **No es así**: el 24 de noviembre el manager registró unos 20 comandos más de verificación de dos IPs distintas como 100360 de nivel 3, ninguno como 100381. Cuando una regla hija está dentro de su ventana de `ignore`, el evento se queda en su padre. La corrección (24 de noviembre) aprovecha eso: 100381 (nivel 2, sin alerta) pasa a ser el padre que tiene el patrón, y 100369 es su hija (`if_sid` 100381) y conserva `ignore="300"`. Los comandos ignorados ahora se quedan en 100381, en silencio. 100382 cuenta 100381 por IP (`same_field` ip) y alerta en nivel 7 si una IP manda 40 en 5 minutos. Un barrido normal son 35 a 50 comandos, el del 17 de noviembre unos 90, así que 40 es una estimación a ajustar con datos reales. `wazuh-logtest` no aplica `ignore` (la muestra mandada 45 veces da 100369 todas las veces), así que las dos muestras llevan `needs=ignore` y `run_logtest.py` las saltea salvo que le pases `--ignore`. Falta confirmar con tráfico real que los comandos se quedan en 100381 y que 100382 salta.
+
+### Reglas agregadas el 26 de noviembre
+
+- **100386, comandos de MikroTik RouterOS.** El 26 de noviembre una IP corrió `/ip cloud print` por `exec`. Busqué en los logs viejos y el mismo comando, y nada más, vino de otras 3 IPs el 27 de octubre, el 29 de octubre y el 2 de noviembre, así que es una técnica que se repite y no un hecho aislado. Es un comando del CLI de RouterOS, no de un Linux común, así que mi lectura es que el bot está comprobando si el puerto SSH es de un router MikroTik. Es una lectura, no algo que confirmé. Hasta ahora esto solo aparecía como 100352 (login aceptado) y la genérica 100360 (nivel 3). La regla busca comandos que empiezan con los menús típicos de RouterOS (`/ip`, `/system`, `/user`, `/interface`, `/tool`, `/export`). Solo se vio `/ip cloud print`, así que los otros prefijos son mi suposición de lo que viene después. El patrón arranca al principio del comando, por eso `/usr/bin/ip addr` no coincide; hay una muestra de logtest para eso. Nivel 5 y T1082, igual que 100367, porque es la misma idea (averiguar qué máquina es). Todavía no probada en el manager.
 
 ### Reglas agregadas el 25 de noviembre
 

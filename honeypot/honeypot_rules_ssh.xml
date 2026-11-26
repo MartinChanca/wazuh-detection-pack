@@ -253,4 +253,15 @@
     <mitre><id>T1082</id><id>T1033</id></mitre>
   </rule>
 
+  <!-- Comandos del CLI de MikroTik RouterOS (/ip, /system, /user...) por exec o shell: el bot cree que el SSH es un router.
+       Visto 4 veces en el principal con el mismo comando, "/ip cloud print" (27/10, 29/10, 2/11 y 26/11, 4 IPs distintas,
+       siempre por exec). Solo se vio ese comando; los demas prefijos son los tipicos de RouterOS, no los vi todavia.
+       "Cree que es un router" es lectura mia: el comando existe en RouterOS y no es de un Linux comun. -->
+  <rule id="100386" level="5">
+    <if_sid>100360</if_sid>
+    <field name="command" type="pcre2">(?i)^\s*/(ip|system|user|interface|tool|export)\b</field>
+    <description>Honeypot: $(ip) probo un comando de MikroTik RouterOS ($(command)).</description>
+    <mitre><id>T1082</id></mitre>
+  </rule>
+
 </group>
